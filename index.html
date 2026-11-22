@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Para mi Júpiter ✨ ¡Feliz Cumpleaños Miauuumoor! ✨</title>
+    <!-- Fuentes de Google: Great Vibes (cursiva romántica) y Poppins (moderna y limpia) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- Fondo de pétalos y brillos interactivos -->
+    <canvas id="bg-canvas"></canvas>
+
+    <!-- Barra de control superior: Sonido + Selector de Modo Visual -->
+    <header class="top-controls-bar">
+        <div class="mode-toggle-group">
+            <span class="mode-toggle-label">Formato:</span>
+            <button class="mode-btn active" id="btn-mode-3d" title="Modo 3D Real: Gira en 360°, haz zoom y acércate a los pétalos">
+                🪐 Modo 3D Real
+            </button>
+            <button class="mode-btn" id="btn-mode-2d" title="Modo 2D Ilustrado: Ilustración botánica artística">
+                🎨 Modo 2D
+            </button>
+        </div>
+        <button class="sound-toggle" id="sound-toggle" title="Sonido activado">🔊</button>
+    </header>
+
+    <main class="app-container">
+
+        <!-- ==============================================
+             PANTALLA 1: PORTADA / BIENVENIDA
+             ============================================== -->
+        <section id="screen-inicio" class="screen active">
+            <div class="card-hero">
+                <div class="hero-icon-container">
+                    <span class="hero-heart">💝</span>
+                </div>
+                <span class="hero-badge">MUMUUUU</span>
+                <h1 class="hero-title">Para mi Júpiter</h1>
+                <p class="hero-subtitle">
+                    después de las 00:00 es un día muyyy importante, porque hace casi exactamente 21 años nacioo la personita más especial para mí y esta vez quise hacerte un pequeño detalle diferente
+                </p>
+                <button id="btn-inicio" class="btn-primary">
+                    Abrir mi sorpresa 💌
+                </button>
+            </div>
+        </section>
+
+        <!-- ==============================================
+             PANTALLA 2: CARTA DE CUMPLEAÑOS
+             ============================================== -->
+        <section id="screen-carta" class="screen">
+            <div class="letter-card">
+                <h2 class="letter-title">¡Feliz Cumpleaños Miauuumoor! ✨</h2>
+                <div class="letter-body">
+                    <p>
+                        Esta vez no te tengo flores reales ni de origami, <strong>pero quise virtualizarlas</strong>.
+                    </p>
+                    <p>
+                        Se diseñó cada parte, color y detalle con paciencia, para esta vez crearte otro tipo de ramo inmarcesible, sin necesidad de agua, sin necesidad de luz que siempre esté floreciendo como tu bella luz.
+                    </p>
+                    <p class="letter-quote">
+                        “Hoy la florista eres tú: quiero que elijas tus flores favoritas (entre 3 y 10 opciones) y veas cómo van brotando una por una en tiempo real para armar tu ramo.”
+                    </p>
+                </div>
+                <button id="btn-carta-comenzar" class="btn-primary">
+                    Comenzar a armar mi ramo 💐
+                </button>
+            </div>
+        </section>
+
+        <!-- ==============================================
+             PANTALLA 3: ESTUDIO DE VIRTUALIZACIÓN
+             ============================================== -->
+        <section id="screen-taller" class="screen">
+            <div class="studio-layout">
+
+                <!-- Columna Izquierda: Catálogo Botánico de Flores -->
+                <div class="panel-catalog">
+                    <div class="panel-header">
+                        <div class="panel-title">
+                            <span>🌿</span> Catálogo de Flores
+                        </div>
+                        <span class="selection-badge">Min 3 • Max 10</span>
+                    </div>
+                    <div class="flower-grid" id="flower-catalog-grid">
+                        <!-- Se genera dinámicamente con app.js -->
+                    </div>
+                </div>
+
+                <!-- Columna Derecha: Escenario de Virtualización y Bandeja -->
+                <div class="panel-stage">
+                    <div class="panel-header">
+                        <div class="panel-title">
+                            <span>✨</span> Mesa de Virtualización
+                        </div>
+                        <span class="selection-badge" id="count-badge">Flores: 0 / 10 (Mínimo 3)</span>
+                    </div>
+
+                    <div class="stage-container">
+                        <!-- Viewport 3D Real (Three.js WebGL con OrbitControls) -->
+                        <div id="virtualizer-3d-container" class="viewport-3d active"></div>
+                        <!-- Viewport 2D Ilustrado (Canvas 2D) -->
+                        <canvas id="virtualizer-canvas" width="400" height="360" class="viewport-2d"></canvas>
+
+                        <!-- Pistas de interacción 3D -->
+                        <div class="viewport-hint" id="virtualizer-3d-hint">
+                            <span>🪐 Arrastra para girar 360° • Rueda o pellizco para zoom in/out</span>
+                        </div>
+
+                        <div class="stage-status" id="virtualizer-status">
+                            Toca "Virtualizar esta flor" en el catálogo para verla nacer 🌱
+                        </div>
+                    </div>
+
+                    <!-- Bandeja de flores elegidas -->
+                    <div class="tray-container">
+                        <div class="tray-title">
+                            <span>Flores que integrarán tu ramo:</span>
+                        </div>
+                        <div class="tray-slots" id="tray-slots">
+                            <!-- Se actualiza con app.js -->
+                        </div>
+                    </div>
+
+                    <div class="stage-actions">
+                        <button id="btn-crear-ramo" class="btn-primary" disabled>
+                            💐 ¡Armar Ramo! (Elige mínimo 3)
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- ==============================================
+             PANTALLA 4: EL RAMO FINAL (CELEBRACIÓN)
+             ============================================== -->
+        <section id="screen-ramo" class="screen">
+            <div class="bouquet-layout">
+                <div class="bouquet-card">
+                    <h2 class="bouquet-title">Tu Ramito de happycump my baby</h2>
+                    <p class="bouquet-subtitle">Un ramo inmarcesible, virtualizado exclusivamente para mi Júpiter 🌸</p>
+
+                    <!-- Contenedor del Ramo: 3D Real interactivo y 2D Ilustrado -->
+                    <div class="bouquet-viewer-box">
+                        <!-- Viewport 3D Real (Three.js WebGL con OrbitControls) -->
+                        <div id="bouquet-3d-container" class="bouquet-viewport-3d active"></div>
+                        <!-- Viewport 2D Ilustrado (Canvas 2D) -->
+                        <canvas id="bouquet-canvas" width="540" height="490" class="bouquet-viewport-2d"></canvas>
+
+                        <!-- Pista interactiva en 3D -->
+                        <div class="bouquet-hint" id="bouquet-3d-hint">
+                            <span>🪐 Gira el ramo en 360° • Zoom con la rueda • Explora cada flor desde cualquier ángulo</span>
+                        </div>
+                    </div>
+
+                    <!-- Tarjeta de dedicatoria -->
+                    <div class="dedication-card">
+                        <p class="dedication-text">
+                            “Para mi personita especial: mi baby mi Júpiter hermosa. Que esta nueva vuelta al sol te traiga toda la felicidad, paz, amor y momentos mágicos que mereces. Gracias por iluminar todo a tu alrededor con tu bella luz y sonrisa cuando esta toda amorosita uwu.”
+                        </p>
+                        <div class="dedication-sign">¡Feliz Cumpleaños, my baby! ❤️</div>
+                    </div>
+
+                    <div class="bouquet-actions">
+                        <button id="btn-descargar-postal" class="btn-primary">
+                            📸 Descargar postal del ramo
+                        </button>
+                        <button id="btn-lluvia-petalos" class="btn-secondary">
+                            🌸 Más pétalos
+                        </button>
+                        <button id="btn-reiniciar" class="btn-secondary">
+                            🔄 Armar otro ramo
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Librerías 3D locales -->
+    <script src="lib/three.min.js"></script>
+    <script src="lib/OrbitControls.js"></script>
+
+    <!-- Motor 3D Real (WebGL) -->
+    <script src="flores3d.js"></script>
+
+    <!-- Clases y Motor 2D Ilustrado -->
+    <script src="flores.js"></script>
+
+    <!-- Lógica de la Aplicación y Controladores -->
+    <script src="app.js"></script>
+</body>
+</html>
