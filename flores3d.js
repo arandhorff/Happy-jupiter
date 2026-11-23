@@ -287,6 +287,10 @@ const GeneradorFlores3D = {
         }
 
         // Sépalos verdes abrazando la base por debajo
+        const geoBase = new THREE.CylinderGeometry(0.32 * s, 0.22 * s, 0.10 * s, 16);
+        geoBase.position.y = -0.12 * s;
+        grupo.add(new THREE.Mesh(geoBase, Materiales3D.verdeCaliz()));
+
         const geoSep = this.crearGeometriaHoja(0.22 * s, 0.80 * s, 0.35);
         const matSep = Materiales3D.verdeCaliz();
         for (let j = 0; j < 5; j++) {
@@ -401,16 +405,21 @@ const GeneradorFlores3D = {
         const s = escala;
 
         // Botón central aterciopelado chocolate (convexa suave)
-        const geoCentro = new THREE.CylinderGeometry(0.52 * s, 0.46 * s, 0.12 * s, 32);
+        const geoCentro = new THREE.CylinderGeometry(0.50 * s, 0.44 * s, 0.14 * s, 32);
         const meshCentro = new THREE.Mesh(geoCentro, Materiales3D.cafeCentro());
-        meshCentro.position.y = 0.02 * s;
+        meshCentro.position.y = 0.04 * s;
         grupo.add(meshCentro);
+
+        // Placa trasera oclusora que previene cualquier intersección posterior
+        const geoFondo = new THREE.CylinderGeometry(0.52 * s, 0.52 * s, 0.04 * s, 32);
+        geoFondo.position.y = -0.02 * s;
+        grupo.add(new THREE.Mesh(geoFondo, Materiales3D.cafeCentro()));
 
         // Anillo de polen dorado
         const geoTorus = new THREE.TorusGeometry(0.44 * s, 0.04 * s, 8, 32);
         geoTorus.rotateX(Math.PI / 2);
         const meshTorus = new THREE.Mesh(geoTorus, Materiales3D.doradoCentro());
-        meshTorus.position.y = 0.06 * s;
+        meshTorus.position.y = 0.08 * s;
         grupo.add(meshTorus);
 
         // Capa 1 (interior): 20 pétalos dorados que abren casi planos (rotX = 1.40)
@@ -429,11 +438,11 @@ const GeneradorFlores3D = {
         }
 
         // Brácteas verdes debajo del disco
-        const geoBractea = this.crearGeometriaHoja(0.22 * s, 0.65 * s, 0.20);
+        const geoBractea = this.crearGeometriaHoja(0.20 * s, 0.55 * s, 0.15);
         const matBractea = Materiales3D.verdeCaliz();
         for (let b = 0; b < 12; b++) {
             const rotY = (b * Math.PI * 2) / 12;
-            grupo.add(this.crearPetaloEnAnillo(geoBractea, matBractea, 0.42 * s, -0.06 * s, 1.65, rotY));
+            grupo.add(this.crearPetaloEnAnillo(geoBractea, matBractea, 0.40 * s, -0.08 * s, 1.70, rotY));
         }
 
         return grupo;
@@ -1066,10 +1075,16 @@ const Motor3D = {
             const transcurrido = ahora - inicioTiempo;
             const progreso = Math.min(1, transcurrido / duracionMs);
 
-            florCabeza.scale.setScalar(Math.max(0.01, progreso));
-            meshTallo.scale.y = Math.min(1, progreso * 1.2);
-            hoja1.scale.setScalar(Math.max(0.01, (progreso - 0.25) / 0.75));
-            hoja2.scale.setScalar(Math.max(0.01, (progreso - 0.35) / 0.65));
+            const progresoTallo = Math.min(1, progreso * 1.15);
+            meshTallo.scale.y = progresoTallo;
+            florCabeza.position.y = -1.15 + finTallo.y * progresoTallo;
+            florCabeza.position.x = finTallo.x * progresoTallo;
+            florCabeza.position.z = finTallo.z * progresoTallo;
+
+            const progresoFlor = Math.max(0.01, Math.min(1, (progreso - 0.25) / 0.75));
+            florCabeza.scale.setScalar(progresoFlor);
+            hoja1.scale.setScalar(Math.max(0.01, (progreso - 0.20) / 0.80));
+            hoja2.scale.setScalar(Math.max(0.01, (progreso - 0.30) / 0.70));
 
             if (onProgreso) onProgreso(progreso);
 
@@ -1078,6 +1093,8 @@ const Motor3D = {
             } else {
                 florCabeza.scale.setScalar(1);
                 meshTallo.scale.y = 1;
+                florCabeza.position.copy(finTallo);
+                florCabeza.position.y += -1.15;
                 hoja1.scale.setScalar(1);
                 hoja2.scale.setScalar(1);
                 if (onFin) onFin();
@@ -1210,96 +1227,96 @@ const Motor3D = {
     // Distribución armónica en cúpula floral según la cantidad de flores
     calcularPlantillas3D(total) {
         if (total === 1) {
-            return [{ x: 0, y: 0.75, z: 0.15, scale: 1.0 }];
+            return [{ x: 0, y: 0.75, z: 0.15, scale: 0.95 }];
         }
         if (total === 2) {
             return [
-                { x: -0.48, y: 0.72, z: 0.12, scale: 0.92 },
-                { x: 0.48, y: 0.72, z: 0.12, scale: 0.92 }
+                { x: -0.48, y: 0.72, z: 0.15, scale: 0.88 },
+                { x: 0.48, y: 0.72, z: 0.15, scale: 0.88 }
             ];
         }
         if (total === 3) {
             return [
-                { x: 0, y: 1.05, z: 0.00, scale: 0.92 },
-                { x: -0.58, y: 0.55, z: 0.20, scale: 0.90 },
-                { x: 0.58, y: 0.55, z: 0.20, scale: 0.90 }
+                { x: 0, y: 1.10, z: -0.05, scale: 0.86 },
+                { x: -0.58, y: 0.55, z: 0.22, scale: 0.84 },
+                { x: 0.58, y: 0.55, z: 0.22, scale: 0.84 }
             ];
         }
         if (total === 4) {
             return [
-                { x: 0, y: 1.10, z: -0.05, scale: 0.90 },
-                { x: -0.65, y: 0.65, z: 0.15, scale: 0.88 },
-                { x: 0.65, y: 0.65, z: 0.15, scale: 0.88 },
-                { x: 0, y: 0.35, z: 0.30, scale: 0.88 }
+                { x: 0, y: 1.15, z: -0.08, scale: 0.84 },
+                { x: -0.68, y: 0.68, z: 0.15, scale: 0.82 },
+                { x: 0.68, y: 0.68, z: 0.15, scale: 0.82 },
+                { x: 0, y: 0.32, z: 0.32, scale: 0.82 }
             ];
         }
         if (total === 5) {
             return [
-                { x: 0, y: 0.80, z: 0.22, scale: 0.92 }, // Centro
-                { x: 0, y: 1.25, z: -0.08, scale: 0.86 },
-                { x: -0.75, y: 0.75, z: 0.12, scale: 0.86 },
-                { x: 0.75, y: 0.75, z: 0.12, scale: 0.86 },
-                { x: 0, y: 0.28, z: 0.32, scale: 0.86 }
+                { x: 0, y: 0.72, z: 0.30, scale: 0.84 }, // Centro elevado al frente
+                { x: 0, y: 1.35, z: -0.15, scale: 0.78 },
+                { x: -0.80, y: 0.80, z: 0.08, scale: 0.78 },
+                { x: 0.80, y: 0.80, z: 0.08, scale: 0.78 },
+                { x: 0, y: 0.22, z: 0.36, scale: 0.78 }
             ];
         }
         if (total === 6) {
             return [
-                { x: 0, y: 0.82, z: 0.20, scale: 0.90 }, // Centro
-                { x: 0, y: 1.28, z: -0.08, scale: 0.85 },
-                { x: -0.78, y: 0.88, z: 0.08, scale: 0.85 },
-                { x: 0.78, y: 0.88, z: 0.08, scale: 0.85 },
-                { x: -0.55, y: 0.30, z: 0.30, scale: 0.85 },
-                { x: 0.55, y: 0.30, z: 0.30, scale: 0.85 }
+                { x: 0, y: 0.76, z: 0.28, scale: 0.84 }, // Centro
+                { x: 0, y: 1.36, z: -0.12, scale: 0.78 },
+                { x: -0.82, y: 0.90, z: 0.05, scale: 0.78 },
+                { x: 0.82, y: 0.90, z: 0.05, scale: 0.78 },
+                { x: -0.58, y: 0.28, z: 0.32, scale: 0.78 },
+                { x: 0.58, y: 0.28, z: 0.32, scale: 0.78 }
             ];
         }
         if (total === 7) {
             return [
-                { x: 0, y: 0.82, z: 0.22, scale: 0.90 }, // Centro
-                { x: 0, y: 1.32, z: -0.10, scale: 0.85 },
-                { x: -0.75, y: 1.00, z: 0.02, scale: 0.85 },
-                { x: 0.75, y: 1.00, z: 0.02, scale: 0.85 },
-                { x: -0.85, y: 0.45, z: 0.20, scale: 0.85 },
-                { x: 0.85, y: 0.45, z: 0.20, scale: 0.85 },
-                { x: 0, y: 0.22, z: 0.34, scale: 0.85 }
+                { x: 0, y: 0.76, z: 0.28, scale: 0.84 }, // Centro
+                { x: 0, y: 1.38, z: -0.14, scale: 0.76 },
+                { x: -0.78, y: 1.05, z: 0.00, scale: 0.76 },
+                { x: 0.78, y: 1.05, z: 0.00, scale: 0.76 },
+                { x: -0.88, y: 0.48, z: 0.18, scale: 0.76 },
+                { x: 0.88, y: 0.48, z: 0.18, scale: 0.76 },
+                { x: 0, y: 0.20, z: 0.36, scale: 0.76 }
             ];
         }
         if (total === 8) {
             return [
-                { x: -0.35, y: 0.85, z: 0.18, scale: 0.88 },
-                { x: 0.35, y: 0.85, z: 0.18, scale: 0.88 },
-                { x: 0, y: 1.34, z: -0.10, scale: 0.84 },
-                { x: -0.85, y: 0.95, z: 0.04, scale: 0.84 },
-                { x: 0.85, y: 0.95, z: 0.04, scale: 0.84 },
-                { x: -0.82, y: 0.40, z: 0.22, scale: 0.84 },
-                { x: 0.82, y: 0.40, z: 0.22, scale: 0.84 },
-                { x: 0, y: 0.24, z: 0.34, scale: 0.84 }
+                { x: -0.38, y: 0.80, z: 0.24, scale: 0.80 },
+                { x: 0.38, y: 0.80, z: 0.24, scale: 0.80 },
+                { x: 0, y: 1.38, z: -0.12, scale: 0.76 },
+                { x: -0.88, y: 0.98, z: 0.02, scale: 0.76 },
+                { x: 0.88, y: 0.98, z: 0.02, scale: 0.76 },
+                { x: -0.85, y: 0.42, z: 0.20, scale: 0.76 },
+                { x: 0.85, y: 0.42, z: 0.20, scale: 0.76 },
+                { x: 0, y: 0.20, z: 0.36, scale: 0.76 }
             ];
         }
         if (total === 9) {
             return [
-                { x: 0, y: 0.85, z: 0.22, scale: 0.88 },
-                { x: -0.42, y: 1.15, z: 0.02, scale: 0.84 },
-                { x: 0.42, y: 1.15, z: 0.02, scale: 0.84 },
-                { x: 0, y: 1.40, z: -0.12, scale: 0.82 },
-                { x: -0.92, y: 0.75, z: 0.10, scale: 0.82 },
-                { x: 0.92, y: 0.75, z: 0.10, scale: 0.82 },
-                { x: -0.58, y: 0.30, z: 0.30, scale: 0.82 },
-                { x: 0.58, y: 0.30, z: 0.30, scale: 0.82 },
-                { x: 0, y: 0.20, z: 0.36, scale: 0.82 }
+                { x: 0, y: 0.80, z: 0.26, scale: 0.82 },
+                { x: -0.45, y: 1.18, z: 0.00, scale: 0.76 },
+                { x: 0.45, y: 1.18, z: 0.00, scale: 0.76 },
+                { x: 0, y: 1.42, z: -0.14, scale: 0.74 },
+                { x: -0.95, y: 0.78, z: 0.08, scale: 0.74 },
+                { x: 0.95, y: 0.78, z: 0.08, scale: 0.74 },
+                { x: -0.60, y: 0.28, z: 0.32, scale: 0.74 },
+                { x: 0.60, y: 0.28, z: 0.32, scale: 0.74 },
+                { x: 0, y: 0.18, z: 0.38, scale: 0.74 }
             ];
         }
-        // 10 flores (Cúpula de rosas idéntica a la referencia)
+        // 10 flores (Cúpula de rosas idéntica a la referencia de floristería)
         return [
-            { x: 0, y: 0.88, z: 0.20, scale: 0.88 },
-            { x: -0.45, y: 0.65, z: 0.28, scale: 0.85 },
-            { x: 0.45, y: 0.65, z: 0.28, scale: 0.85 },
-            { x: 0, y: 1.40, z: -0.12, scale: 0.84 },
-            { x: -0.75, y: 1.15, z: -0.02, scale: 0.82 },
-            { x: 0.75, y: 1.15, z: -0.02, scale: 0.82 },
-            { x: -1.05, y: 0.65, z: 0.12, scale: 0.82 },
-            { x: 1.05, y: 0.65, z: 0.12, scale: 0.82 },
-            { x: -0.62, y: 0.18, z: 0.34, scale: 0.82 },
-            { x: 0.62, y: 0.18, z: 0.34, scale: 0.82 }
+            { x: 0, y: 0.84, z: 0.25, scale: 0.82 },
+            { x: -0.48, y: 0.62, z: 0.30, scale: 0.78 },
+            { x: 0.48, y: 0.62, z: 0.30, scale: 0.78 },
+            { x: 0, y: 1.42, z: -0.14, scale: 0.76 },
+            { x: -0.78, y: 1.18, z: -0.04, scale: 0.75 },
+            { x: 0.78, y: 1.18, z: -0.04, scale: 0.75 },
+            { x: -1.08, y: 0.68, z: 0.10, scale: 0.75 },
+            { x: 1.08, y: 0.68, z: 0.10, scale: 0.75 },
+            { x: -0.65, y: 0.18, z: 0.36, scale: 0.75 },
+            { x: 0.65, y: 0.18, z: 0.36, scale: 0.75 }
         ];
     }
 };
