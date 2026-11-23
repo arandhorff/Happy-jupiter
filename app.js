@@ -61,8 +61,8 @@ const AppState = {
             nombre: 'Dalia',
             emoji: '🌼',
             desc: 'Geométrica y majestuosa, con decenas de pétalos cónicos.',
-            colores: ['#a07855', '#ff758f', '#8d6e63', '#f4a261', '#e9d8a6'],
-            colorSeleccionado: '#a07855'
+            colores: ['#ff758f', '#f4a261', '#ff4d6d', '#e9d8a6', '#d8b4e2', '#a07855'],
+            colorSeleccionado: '#ff758f'
         },
         {
             tipo: 'orquidea',
