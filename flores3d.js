@@ -108,6 +108,55 @@ const Materiales3D = {
 // ===================================================
 const GeneradorFlores3D = {
 
+    // Pétalo de Rosa de alta fidelidad: silueta de corazón suave, copa envolvente y bordes enrollados hacia atrás (reflexed)
+    crearGeometriaPetaloRosa(ancho, alto, curvaturaCopa = 0.35, curvaturaReflex = -0.18) {
+        const segX = 18;
+        const segY = 18;
+        const geo = new THREE.PlaneGeometry(ancho, alto, segX, segY);
+        geo.translate(0, alto * 0.5, 0);
+
+        const pos = geo.attributes.position;
+        for (let i = 0; i < pos.count; i++) {
+            let x = pos.getX(i);
+            const y = pos.getY(i);
+            const v = Math.max(0, Math.min(1, y / alto));
+            const u = x / (ancho * 0.5 + 0.0001);
+
+            let factorAncho;
+            if (v < 0.55) {
+                factorAncho = 0.22 + 0.78 * Math.sin((v / 0.55) * Math.PI * 0.5);
+            } else {
+                const t = (v - 0.55) / 0.45;
+                factorAncho = 0.45 + 0.55 * Math.sqrt(Math.max(0, 1.0 - t * t));
+            }
+            x *= factorAncho;
+            pos.setX(i, x);
+
+            const uNorm = Math.min(1, Math.max(-1, u));
+            // Copa profunda en el vientre del pétalo para envolver el capullo
+            const copa = curvaturaCopa * alto * Math.sin(v * Math.PI) * (1.0 - uNorm * uNorm * 0.45);
+
+            // Borde superior reflexed (enrollado delicadamente hacia atrás)
+            let reflexSup = 0;
+            if (v > 0.68) {
+                const t = (v - 0.68) / 0.32;
+                reflexSup = curvaturaReflex * alto * (t * t) * (1.0 - Math.abs(uNorm) * 0.25);
+            }
+
+            // Flancos exteriores curvados suavemente hacia afuera
+            let reflexLat = 0;
+            if (Math.abs(uNorm) > 0.50) {
+                const t = (Math.abs(uNorm) - 0.50) / 0.50;
+                reflexLat = (curvaturaReflex * 0.6) * alto * (t * t) * v;
+            }
+
+            pos.setZ(i, copa + reflexSup + reflexLat);
+        }
+
+        geo.computeVertexNormals();
+        return geo;
+    },
+
     // Pétalo estándar con silueta redondeada y pivote en la base (y = 0)
     crearGeometriaPetalo(ancho, alto, curvaturaCopa = 0.25, curvaturaBorde = -0.12, esPuntaAfilada = false) {
         const segX = 14;
@@ -447,59 +496,77 @@ const GeneradorFlores3D = {
         return { mesh, fin: puntos[numPuntos], alturaTotal: altura };
     },
 
-    // 1. ROSA 3D (Espirales aterciopeladas románticas en 5 capas suaves con cáliz verde)
+    // 1. ROSA 3D (Espirales aterciopeladas románticas de alta fidelidad en 6 niveles con bordes enrollados y cáliz botánico)
     crearRosa(colorHex, escala = 1) {
         const grupo = new THREE.Group();
         grupo.name = 'Rosa3D';
-        const mat = Materiales3D.crear(colorHex, { roughness: 0.78 });
         const s = escala;
 
-        // Capa 1: Botón central apretado (4 pétalos cilíndricos envolventes)
-        const geo1 = this.crearGeometriaPetalo(0.42 * s, 0.68 * s, 0.40, -0.05);
+        const mat = Materiales3D.crear(colorHex, { roughness: 0.72 });
+        // Tonalidad más profunda para el corazón de la rosa
+        let colInt;
+        try {
+            colInt = '#' + new THREE.Color(colorHex).multiplyScalar(0.85).getHexString();
+        } catch (e) {
+            colInt = colorHex;
+        }
+        const matInt = Materiales3D.crear(colInt, { roughness: 0.76 });
+
+        // Nivel 0: Botón central apretado (3 pétalos espirales interiores)
+        const geo0 = this.crearGeometriaPetaloRosa(0.35 * s, 0.62 * s, 0.45, -0.06);
+        for (let i = 0; i < 3; i++) {
+            const rotY = (i * Math.PI * 2) / 3 + 0.20;
+            grupo.add(this.crearPetaloEnAnillo(geo0, matInt, 0.03 * s, 0.08 * s, 0.12, rotY));
+        }
+
+        // Nivel 1: Capullo envolvente (4 pétalos cilíndricos acopados)
+        const geo1 = this.crearGeometriaPetaloRosa(0.52 * s, 0.76 * s, 0.40, -0.10);
         for (let i = 0; i < 4; i++) {
-            const rotY = (i * Math.PI * 2) / 4 + 0.35;
-            grupo.add(this.crearPetaloEnAnillo(geo1, mat, 0.04 * s, 0.06 * s, 0.22, rotY));
+            const rotY = (i * Math.PI * 2) / 4 + 0.60;
+            grupo.add(this.crearPetaloEnAnillo(geo1, matInt, 0.07 * s, 0.05 * s, 0.26, rotY));
         }
 
-        // Capa 2: Espiral interior (5 pétalos acopados)
-        const geo2 = this.crearGeometriaPetalo(0.62 * s, 0.80 * s, 0.35, -0.10);
+        // Nivel 2: Espiral interior intermedia (5 pétalos con reborde inicial)
+        const geo2 = this.crearGeometriaPetaloRosa(0.72 * s, 0.90 * s, 0.36, -0.16);
         for (let i = 0; i < 5; i++) {
-            const rotY = (i * Math.PI * 2) / 5 + 0.65;
-            grupo.add(this.crearPetaloEnAnillo(geo2, mat, 0.10 * s, 0.03 * s, 0.42, rotY));
+            const rotY = (i * Math.PI * 2) / 5 + 0.15;
+            grupo.add(this.crearPetaloEnAnillo(geo2, mat, 0.14 * s, 0.02 * s, 0.44, rotY));
         }
 
-        // Capa 3: Espiral media (6 pétalos abriéndose con reborde)
-        const geo3 = this.crearGeometriaPetalo(0.82 * s, 0.94 * s, 0.30, -0.18);
+        // Nivel 3: Espiral media abriéndose (6 pétalos amplios con bordes reflexed)
+        const geo3 = this.crearGeometriaPetaloRosa(0.92 * s, 1.04 * s, 0.30, -0.22);
         for (let i = 0; i < 6; i++) {
-            const rotY = (i * Math.PI * 2) / 6 + 0.25;
-            grupo.add(this.crearPetaloEnAnillo(geo3, mat, 0.20 * s, -0.01 * s, 0.68, rotY));
+            const rotY = (i * Math.PI * 2) / 6 + 0.50;
+            grupo.add(this.crearPetaloEnAnillo(geo3, mat, 0.24 * s, -0.02 * s, 0.68, rotY));
         }
 
-        // Capa 4: Capa exterior abierta (7 pétalos amplios)
-        const geo4 = this.crearGeometriaPetalo(1.02 * s, 1.05 * s, 0.25, -0.22);
+        // Nivel 4: Capa exterior abierta (7 pétalos de floristería)
+        const geo4 = this.crearGeometriaPetaloRosa(1.12 * s, 1.15 * s, 0.25, -0.28);
         for (let i = 0; i < 7; i++) {
-            const rotY = (i * Math.PI * 2) / 7 + 0.55;
-            grupo.add(this.crearPetaloEnAnillo(geo4, mat, 0.32 * s, -0.05 * s, 0.95, rotY));
+            const rotY = (i * Math.PI * 2) / 7 + 0.25;
+            grupo.add(this.crearPetaloEnAnillo(geo4, mat, 0.36 * s, -0.06 * s, 0.94, rotY));
         }
 
-        // Capa 5: Pétalos exteriores desplegados (8 pétalos de floristería)
-        const geo5 = this.crearGeometriaPetalo(1.15 * s, 1.10 * s, 0.20, -0.28);
+        // Nivel 5: Pétalos exteriores desplegados de guardia (8 pétalos de base voluptuosos)
+        const geo5 = this.crearGeometriaPetaloRosa(1.22 * s, 1.20 * s, 0.18, -0.34);
         for (let i = 0; i < 8; i++) {
-            const rotY = (i * Math.PI * 2) / 8 + 0.15;
-            grupo.add(this.crearPetaloEnAnillo(geo5, mat, 0.44 * s, -0.10 * s, 1.25, rotY));
+            const rotY = (i * Math.PI * 2) / 8 + 0.70;
+            grupo.add(this.crearPetaloEnAnillo(geo5, mat, 0.48 * s, -0.10 * s, 1.22, rotY));
         }
 
-        // Base y sépalos verdes
-        const geoBase = new THREE.CylinderGeometry(0.32 * s, 0.22 * s, 0.10 * s, 16);
+        // Receptáculo verde bulboso (cadera de la rosa)
+        const geoBase = new THREE.SphereGeometry(0.26 * s, 16, 12);
+        geoBase.scale(1, 0.75, 1);
         const meshBase = new THREE.Mesh(geoBase, Materiales3D.verdeCaliz());
         meshBase.position.y = -0.12 * s;
         grupo.add(meshBase);
 
-        const geoSep = this.crearGeometriaHoja(0.22 * s, 0.80 * s, 0.35);
+        // 5 sépalos verdes curvados hacia atrás abrazando el tallo
+        const geoSep = this.crearGeometriaHoja(0.20 * s, 0.90 * s, 0.38);
         const matSep = Materiales3D.verdeCaliz();
         for (let j = 0; j < 5; j++) {
-            const rotY = (j * Math.PI * 2) / 5;
-            grupo.add(this.crearPetaloEnAnillo(geoSep, matSep, 0.28 * s, -0.16 * s, 1.68, rotY));
+            const rotY = (j * Math.PI * 2) / 5 + 0.35;
+            grupo.add(this.crearPetaloEnAnillo(geoSep, matSep, 0.26 * s, -0.14 * s, 1.70, rotY));
         }
 
         return grupo;
@@ -628,7 +695,7 @@ const GeneradorFlores3D = {
         return grupo;
     },
 
-    // 5. GIRASOL 3D (Radiante y elegante: disco de chocolate aterciopelado con anillo de polen y pétalos solares oblongos)
+    // 5. GIRASOL 3D (Radiante y majestuoso: disco aterciopelado con doble anillo de polen y 48 pétalos solares oblongos)
     crearGirasol(colorHex, escala = 1) {
         const grupo = new THREE.Group();
         grupo.name = 'Girasol3D';
@@ -636,45 +703,59 @@ const GeneradorFlores3D = {
 
         // Botón central abovedado aterciopelado de chocolate
         const geoCentro = new THREE.SphereGeometry(0.48 * s, 32, 16);
-        geoCentro.scale(1, 0.28, 1);
+        geoCentro.scale(1, 0.30, 1);
         const meshCentro = new THREE.Mesh(geoCentro, Materiales3D.cafeCentro());
-        meshCentro.position.y = 0.04 * s;
+        meshCentro.position.y = 0.05 * s;
         grupo.add(meshCentro);
 
+        // Núcleo interno de flósculos centrales aterciopelados más oscuros
+        const geoCentroInt = new THREE.SphereGeometry(0.28 * s, 24, 12);
+        geoCentroInt.scale(1, 0.32, 1);
+        const mCentroInt = new THREE.Mesh(geoCentroInt, Materiales3D.crear('#1a0d07', { roughness: 0.94 }));
+        mCentroInt.position.y = 0.08 * s;
+        grupo.add(mCentroInt);
+
         // Placa trasera oclusora que previene cualquier penetración desde atrás
-        const geoFondo = new THREE.CylinderGeometry(0.50 * s, 0.50 * s, 0.05 * s, 32);
+        const geoFondo = new THREE.CylinderGeometry(0.50 * s, 0.50 * s, 0.06 * s, 32);
         const meshFondo = new THREE.Mesh(geoFondo, Materiales3D.cafeCentro());
         meshFondo.position.y = -0.01 * s;
         grupo.add(meshFondo);
 
-        // Anillo de polen dorado
-        const geoTorus = new THREE.TorusGeometry(0.44 * s, 0.045 * s, 10, 32);
+        // Anillo de polen medio bronce dorado
+        const geoTorusMedio = new THREE.TorusGeometry(0.35 * s, 0.035 * s, 10, 32);
+        geoTorusMedio.rotateX(Math.PI / 2);
+        const meshTorusMedio = new THREE.Mesh(geoTorusMedio, Materiales3D.crear('#d48b04', { roughness: 0.75 }));
+        meshTorusMedio.position.y = 0.08 * s;
+        grupo.add(meshTorusMedio);
+
+        // Anillo de polen exterior dorado brillante
+        const geoTorus = new THREE.TorusGeometry(0.46 * s, 0.045 * s, 10, 32);
         geoTorus.rotateX(Math.PI / 2);
         const meshTorus = new THREE.Mesh(geoTorus, Materiales3D.doradoCentro());
         meshTorus.position.y = 0.07 * s;
         grupo.add(meshTorus);
 
-        // Capa 1: 22 pétalos dorados interiores casi planos (rotX = 1.38)
+        // Capa 1: 24 pétalos dorados interiores casi planos (rotX = 1.38)
         const matPetalo = Materiales3D.crear(colorHex || '#ffb703', { roughness: 0.72 });
-        const geoPetalo1 = this.crearGeometriaPetaloGirasol(0.28 * s, 0.85 * s);
-        for (let i = 0; i < 22; i++) {
-            const rotY = (i * Math.PI * 2) / 22;
+        const geoPetalo1 = this.crearGeometriaPetaloGirasol(0.28 * s, 0.88 * s);
+        for (let i = 0; i < 24; i++) {
+            const rotY = (i * Math.PI * 2) / 24;
             grupo.add(this.crearPetaloEnAnillo(geoPetalo1, matPetalo, 0.44 * s, 0.04 * s, 1.38, rotY));
         }
 
-        // Capa 2: 22 pétalos dorados exteriores planos (rotX = 1.50) desfasados
-        const geoPetalo2 = this.crearGeometriaPetaloGirasol(0.30 * s, 0.92 * s);
-        for (let i = 0; i < 22; i++) {
-            const rotY = (i * Math.PI * 2) / 22 + (Math.PI / 22);
+        // Capa 2: 24 pétalos dorados exteriores planos (rotX = 1.50) desfasados
+        const geoPetalo2 = this.crearGeometriaPetaloGirasol(0.32 * s, 0.96 * s);
+        for (let i = 0; i < 24; i++) {
+            const rotY = (i * Math.PI * 2) / 24 + (Math.PI / 24);
             grupo.add(this.crearPetaloEnAnillo(geoPetalo2, matPetalo, 0.48 * s, 0.01 * s, 1.50, rotY));
         }
 
-        // Brácteas verdes (filarias) debajo del disco
-        const geoBractea = this.crearGeometriaHoja(0.22 * s, 0.55 * s, 0.15);
+        // 18 brácteas verdes (filarias) debajo del disco
+        const geoBractea = this.crearGeometriaHoja(0.22 * s, 0.58 * s, 0.15);
         const matBractea = Materiales3D.verdeCaliz();
-        for (let b = 0; b < 14; b++) {
-            const rotY = (b * Math.PI * 2) / 14;
-            grupo.add(this.crearPetaloEnAnillo(geoBractea, matBractea, 0.42 * s, -0.06 * s, 1.68, rotY));
+        for (let b = 0; b < 18; b++) {
+            const rotY = (b * Math.PI * 2) / 18;
+            grupo.add(this.crearPetaloEnAnillo(geoBractea, matBractea, 0.44 * s, -0.06 * s, 1.68, rotY));
         }
 
         return grupo;
@@ -1294,8 +1375,13 @@ const Motor3D = {
         }
         v.particulas3D = [];
         v.grupoContenido.rotation.y = 0;
-        v.controls.target.set(0, 0.90, 0);
-        v.camera.position.set(0, 2.10, 4.3);
+        if (itemDef.tipo === 'girasol') {
+            v.controls.target.set(0, 1.05, 0);
+            v.camera.position.set(0, 1.40, 4.4);
+        } else {
+            v.controls.target.set(0, 0.90, 0);
+            v.camera.position.set(0, 2.10, 4.3);
+        }
         v.controls.update();
 
         const florRaiz = new THREE.Group();
@@ -1331,7 +1417,7 @@ const Motor3D = {
         florCabeza.position.y += -1.15;
 
         if (itemDef.tipo !== 'lavanda' && itemDef.tipo !== 'eucalipto' && itemDef.tipo !== 'helecho' && itemDef.tipo !== 'gypsophila') {
-            florCabeza.rotation.x = 0.42;
+            florCabeza.rotation.x = (itemDef.tipo === 'girasol') ? 1.48 : 0.42;
         }
         florRaiz.add(florCabeza);
 
@@ -1384,7 +1470,8 @@ const Motor3D = {
         requestAnimationFrame(animarBrote);
     },
 
-    // Ensamblaje armónico del Ramo Completo en 3D (Cúpula de floristería de lujo tipo Bouquet Rond)
+    // Ensamblaje armónico del Ramo Completo en 3D
+    // Adaptativo: ramo estilizado abierto para 3-5 flores, y cúpula compacta de floristería (Bouquet Rond) para 6+ flores
     iniciarRamo3D(floresSeleccionadas) {
         if (!this.ramo) {
             this.ramo = this.crearEscena('bouquet-3d-container', {
@@ -1404,27 +1491,37 @@ const Motor3D = {
         r.grupoContenido.rotation.y = 0;
 
         const bouquetGrupo = new THREE.Group();
-        bouquetGrupo.position.y = 0.05;
-
-        // Punto de amarre central del ramo (justo debajo del domo de flores)
-        const puntoLazo = new THREE.Vector3(0, -0.12, 0);
-        const yCentroDomo = 0.55;
 
         const follaje = floresSeleccionadas.filter(f => f.tipo === 'eucalipto' || f.tipo === 'helecho');
         const principales = floresSeleccionadas.filter(f => f.tipo !== 'eucalipto' && f.tipo !== 'helecho');
         const floresParaDomo = principales.length > 0 ? principales : follaje;
         const follajeDeFondo = principales.length > 0 ? follaje : [];
 
+        const total = floresParaDomo.length;
+        const esDomoCompacto = total >= 6;
+
+        // Configuración según el volumen del ramo:
+        // - Para 3 a 5 flores: composición abierta, espaciosa y romántica con tallos elegantes visibles
+        // - Para 6 a 10 flores: domo esférico compacto de alta floristería (Bouquet Rond)
+        const puntoLazo = esDomoCompacto ? new THREE.Vector3(0, -0.12, 0) : new THREE.Vector3(0, -0.55, 0);
+        const yCentroDomo = esDomoCompacto ? 0.55 : 0.70;
+        bouquetGrupo.position.y = esDomoCompacto ? 0.05 : 0.15;
+
         // 1. Follaje de fondo que enmarca el ramo con frescura y altura
-        const configAlas = [
+        const configAlas = esDomoCompacto ? [
             { pos: new THREE.Vector3(-0.75, 0.70, -0.22), rotZ: 0.35, rotY: 0.18 },
             { pos: new THREE.Vector3(0.75, 0.70, -0.22), rotZ: -0.35, rotY: -0.18 },
             { pos: new THREE.Vector3(-0.40, 0.98, -0.28), rotZ: 0.18, rotY: 0.12 },
             { pos: new THREE.Vector3(0.40, 0.98, -0.28), rotZ: -0.18, rotY: -0.12 }
+        ] : [
+            { pos: new THREE.Vector3(-0.95, 0.85, -0.25), rotZ: 0.38, rotY: 0.20 },
+            { pos: new THREE.Vector3(0.95, 0.85, -0.25), rotZ: -0.38, rotY: -0.20 },
+            { pos: new THREE.Vector3(-0.55, 1.15, -0.32), rotZ: 0.20, rotY: 0.14 },
+            { pos: new THREE.Vector3(0.55, 1.15, -0.32), rotZ: -0.20, rotY: -0.14 }
         ];
 
         follajeDeFondo.forEach((fol, idx) => {
-            const ramaMesh = GeneradorFlores3D.crearFlor(fol.tipo, fol.color, 0.60);
+            const ramaMesh = GeneradorFlores3D.crearFlor(fol.tipo, fol.color, esDomoCompacto ? 0.60 : 0.70);
             const cfg = configAlas[idx % configAlas.length];
             ramaMesh.position.copy(cfg.pos);
             ramaMesh.rotation.z = cfg.rotZ;
@@ -1432,43 +1529,43 @@ const Motor3D = {
             bouquetGrupo.add(ramaMesh);
         });
 
-        // 2. Flores distribuidas en cúpula armónica esférica
-        const total = floresParaDomo.length;
+        // 2. Flores distribuidas armónicamente
         const plantillas3D = this.calcularPlantillas3D(total);
 
-        // Calibración de escala por especie botánica para que convivan en perfecta armonía sin sobreposiciones
+        // Calibración de escala por especie botánica
+        const multGeneral = esDomoCompacto ? 1.0 : 1.35;
         const escalaEspecieRamo = {
-            girasol: 0.40,
-            lirio: 0.36,
-            amapola: 0.44,
-            peonia: 0.45,
-            rosa: 0.48,
-            tulipan: 0.48,
-            clavel: 0.46,
-            dalia: 0.44,
-            sakura: 0.50,
-            margarita: 0.44,
-            orquidea: 0.44,
-            hortensia: 0.46,
-            lavanda: 0.48,
-            gypsophila: 0.46,
-            eucalipto: 0.50,
-            helecho: 0.50
+            girasol: 0.40 * multGeneral,
+            lirio: 0.36 * multGeneral,
+            amapola: 0.44 * multGeneral,
+            peonia: 0.45 * multGeneral,
+            rosa: 0.48 * multGeneral,
+            tulipan: 0.48 * multGeneral,
+            clavel: 0.46 * multGeneral,
+            dalia: 0.44 * multGeneral,
+            sakura: 0.50 * multGeneral,
+            margarita: 0.44 * multGeneral,
+            orquidea: 0.44 * multGeneral,
+            hortensia: 0.46 * multGeneral,
+            lavanda: 0.48 * multGeneral,
+            gypsophila: 0.46 * multGeneral,
+            eucalipto: 0.50 * multGeneral,
+            helecho: 0.50 * multGeneral
         };
 
         floresParaDomo.forEach((flor, idx) => {
             const p = plantillas3D[idx % plantillas3D.length];
             const factorBase = p.scale ? (p.scale / 0.76) : 1.0;
-            const escalaFinal = (escalaEspecieRamo[flor.tipo] || 0.45) * factorBase;
+            const escalaFinal = (escalaEspecieRamo[flor.tipo] || (0.45 * multGeneral)) * factorBase;
             const florCabeza = GeneradorFlores3D.crearFlor(flor.tipo, flor.color, escalaFinal);
             florCabeza.position.set(p.x, p.y, p.z);
 
-            // Orientación natural hacia afuera e inclinada hacia el frente (+Z, hacia la cámara)
-            // Las flores muestran sus rostros radiantes a la persona que las contempla
+            // Orientación natural: girasol mira de frente a la persona; demás flores en abanico natural
+            const factorZ = (flor.tipo === 'girasol') ? 1.45 : 0.90;
             const dir = new THREE.Vector3(
-                p.x * 0.55,
-                (p.y - yCentroDomo) * 0.55,
-                0.90
+                p.x * (esDomoCompacto ? 0.55 : 0.70),
+                (p.y - yCentroDomo) * (esDomoCompacto ? 0.55 : 0.50),
+                factorZ
             ).normalize();
             florCabeza.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
             bouquetGrupo.add(florCabeza);
@@ -1476,26 +1573,28 @@ const Motor3D = {
             // Tallo convergente limpio desde la flor hasta el punto de amarre
             const curvaTallo = new THREE.CatmullRomCurve3([
                 new THREE.Vector3(p.x, p.y - 0.05, p.z),
-                new THREE.Vector3(p.x * 0.45, puntoLazo.y + 0.15, p.z * 0.45),
+                new THREE.Vector3(p.x * 0.45, puntoLazo.y + (esDomoCompacto ? 0.15 : 0.30), p.z * 0.45),
                 puntoLazo.clone().add(new THREE.Vector3(p.x * 0.06, 0.01, p.z * 0.06))
             ]);
-            const geoTallo = new THREE.TubeGeometry(curvaTallo, 16, 0.036, 8, false);
+            const geoTallo = new THREE.TubeGeometry(curvaTallo, 16, esDomoCompacto ? 0.036 : 0.042, 8, false);
             const meshTallo = new THREE.Mesh(geoTallo, Materiales3D.verdeTallo());
             bouquetGrupo.add(meshTallo);
         });
 
-        // 3. Collar de hojas verdes de floristería que sostienen y enmarcan la base del domo
-        const numHojasCollar = 10;
+        // 3. Collar de hojas verdes de floristería que sostienen y enmarcan la base
+        const numHojasCollar = esDomoCompacto ? 10 : 8;
         const matHojaCollar = Materiales3D.verdeHoja();
+        const radioCollar = esDomoCompacto ? 0.82 : 0.90;
+        const yBaseCollar = esDomoCompacto ? 0.42 : (puntoLazo.y + 0.45);
+
         for (let i = 0; i < numHojasCollar; i++) {
             const a = (i * Math.PI * 2) / numHojasCollar;
-            const geoHoja = GeneradorFlores3D.crearGeometriaHoja(0.38, 0.95, 0.22);
+            const geoHoja = GeneradorFlores3D.crearGeometriaHoja(0.38, esDomoCompacto ? 0.95 : 1.10, 0.22);
             const hoja = new THREE.Mesh(geoHoja, matHojaCollar);
 
-            const radioCollar = 0.82;
-            const yCollar = 0.42 + Math.sin(a) * 0.25;
+            const yCollar = yBaseCollar + Math.sin(a) * (esDomoCompacto ? 0.25 : 0.15);
             const xCollar = Math.cos(a) * radioCollar;
-            const zCollar = Math.sin(a) * radioCollar * 0.35 - 0.04;
+            const zCollar = Math.sin(a) * radioCollar * (esDomoCompacto ? 0.35 : 0.65) - 0.04;
             hoja.position.set(xCollar, yCollar, zCollar);
 
             const dirHoja = new THREE.Vector3(Math.cos(a) * 1.15, 0.32, Math.sin(a) * 0.45 + 0.35).normalize();
@@ -1504,63 +1603,71 @@ const Motor3D = {
         }
 
         // 4. Haz de tallos inferiores reunidos y cortados parejos bajo el lazo
-        const totalTallosInf = 10;
+        const totalTallosInf = esDomoCompacto ? 10 : 8;
+        const largoTallosInf = esDomoCompacto ? 0.48 : 0.80;
         for (let i = 0; i < totalTallosInf; i++) {
             const t = (i / (totalTallosInf - 1)) - 0.5;
-            const geoTalloInf = new THREE.CylinderGeometry(0.032, 0.032, 0.48, 8);
-            geoTalloInf.translate(0, -0.24, 0);
+            const geoTalloInf = new THREE.CylinderGeometry(0.034, 0.034, largoTallosInf, 8);
+            geoTalloInf.translate(0, -largoTallosInf * 0.5, 0);
             const mTI = new THREE.Mesh(geoTalloInf, Materiales3D.verdeTallo());
-            mTI.position.set(t * 0.18, puntoLazo.y, (Math.random() - 0.5) * 0.08);
+            mTI.position.set(t * (esDomoCompacto ? 0.18 : 0.22), puntoLazo.y, (Math.random() - 0.5) * 0.08);
             mTI.rotation.z = t * 0.12;
             bouquetGrupo.add(mTI);
         }
 
         // 5. Lazo satinado de regalo en el punto de amarre
-        const lazo = GeneradorFlores3D.crearLazoSatinado('#ffb3c6', 0.85);
+        const lazo = GeneradorFlores3D.crearLazoSatinado('#ffb3c6', esDomoCompacto ? 0.85 : 0.90);
         lazo.position.copy(puntoLazo);
         lazo.position.z += 0.14;
         bouquetGrupo.add(lazo);
 
         r.grupoContenido.add(bouquetGrupo);
 
-        r.controls.target.set(0, 0.42, 0);
-        r.camera.position.set(0, 0.85, 3.8);
+        if (esDomoCompacto) {
+            r.controls.target.set(0, 0.42, 0);
+            r.camera.position.set(0, 0.85, 3.8);
+        } else {
+            r.controls.target.set(0, 0.60, 0);
+            r.camera.position.set(0, 1.15, 4.2);
+        }
         r.controls.update();
     },
 
-    // Distribución armónica en cúpula floral según la cantidad de flores (Bouquet Rond compacto de floristería)
+    // Distribución según la cantidad de flores:
+    // - 1 a 5 flores: composición abierta y espaciosa con presencia
+    // - 6 a 10 flores: cúpula esférica compacta de floristería (Bouquet Rond)
     calcularPlantillas3D(total) {
         if (total === 1) {
-            return [{ x: 0, y: 0.55, z: 0.20, scale: 0.88 }];
+            return [{ x: 0, y: 0.75, z: 0.15, scale: 0.95 }];
         }
         if (total === 2) {
             return [
-                { x: -0.32, y: 0.55, z: 0.20, scale: 0.82 },
-                { x: 0.32, y: 0.55, z: 0.20, scale: 0.82 }
+                { x: -0.48, y: 0.72, z: 0.15, scale: 0.88 },
+                { x: 0.48, y: 0.72, z: 0.15, scale: 0.88 }
             ];
         }
         if (total === 3) {
             return [
-                { x: 0, y: 0.78, z: 0.12, scale: 0.80 },
-                { x: -0.36, y: 0.42, z: 0.20, scale: 0.78 },
-                { x: 0.36, y: 0.42, z: 0.20, scale: 0.78 }
+                { x: 0, y: 1.10, z: -0.05, scale: 0.86 },
+                { x: -0.58, y: 0.55, z: 0.22, scale: 0.84 },
+                { x: 0.58, y: 0.55, z: 0.22, scale: 0.84 }
             ];
         }
         if (total === 4) {
             return [
-                { x: 0, y: 0.82, z: 0.10, scale: 0.78 },
-                { x: -0.40, y: 0.55, z: 0.18, scale: 0.76 },
-                { x: 0.40, y: 0.55, z: 0.18, scale: 0.76 },
-                { x: 0, y: 0.28, z: 0.22, scale: 0.76 }
+                { x: 0, y: 1.15, z: -0.08, scale: 0.84 },
+                { x: -0.68, y: 0.68, z: 0.15, scale: 0.82 },
+                { x: 0.68, y: 0.68, z: 0.15, scale: 0.82 },
+                { x: 0, y: 0.32, z: 0.32, scale: 0.82 }
             ];
         }
         if (total === 5) {
             return [
-                { x: 0, y: 0.58, z: 0.26, scale: 0.78 }, // Centro frontal
-                { x: 0, y: 0.92, z: 0.08, scale: 0.74 },
-                { x: -0.48, y: 0.60, z: 0.15, scale: 0.74 },
-                { x: 0.48, y: 0.60, z: 0.15, scale: 0.74 },
-                { x: 0, y: 0.24, z: 0.22, scale: 0.74 }
+                { x: 0, y: 0.72, z: 0.30, scale: 0.84 }, // Centro elevado al frente
+                { x: 0, y: 1.35, z: -0.15, scale: 0.78 },
+                { x: -0.80, y: 0.80, z: 0.08, scale: 0.78 },
+                { x: 0.80, y: 0.80, z: 0.08, scale: 0.78 },
+                { x: 0, y: 0.22, z: 0.36, scale: 0.78 }
             ];
         }
         if (total === 6) {
